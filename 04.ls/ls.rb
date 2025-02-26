@@ -2,50 +2,54 @@
 # frozen_string_literal: true
 
 COLUMN_COUNT = 3
+COLUMN_PADDING = 2
+TARGET_DIR = '.'
 
 def main
   filenames = fetch_visible_filenames
 
-  columns = split_into_column(filenames)
-  formated_columns = format_columns(columns)
+  return if filenames.empty?
 
-  rows = arrange_into_rows(formated_columns)
-  display_filenames(rows)
+  columns = divide_into_columns(filenames)
+  formatted_columns = format_columns(columns)
+
+  rows = transpose_columns_to_rows(formatted_columns)
+  print_filenames(rows)
 end
 
 def fetch_visible_filenames
-  Dir.entries('./test').reject { |entry| entry.start_with?('.') }.sort
+  Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort
 end
 
 def format_columns(columns)
   columns.map do |column|
-    max_filename_length = find_max_filename_length(column)
-    column_width = determine_column_width(max_filename_length)
-    padded_column = pad_filenames(column, column_width)
+    max_length = max_filename_length(column)
+    column_width = calculate_column_width(max_length)
+    pad_filenames(column, column_width)
   end
 end
 
-def split_into_column(filenames)
+def divide_into_columns(filenames)
   row_count = (filenames.size / COLUMN_COUNT).ceil
   filenames.each_slice(row_count).to_a
 end
 
-def find_max_filename_length(filenames)
+def max_filename_length(filenames)
   filenames.map(&:length).max
 end
 
-def determine_column_width(max_filename_length)
-  max_filename_length + 2
+def calculate_column_width(max_filename_length)
+  max_filename_length + COLUMN_PADDING
 end
 
 def pad_filenames(column, column_width)
   column.map { |cell| cell.ljust(column_width) }
 end
 
-def arrange_into_rows(formated_columns)
-  filenames = formated_columns.flatten
+def transpose_columns_to_rows(formatted_columns)
+  filenames = formatted_columns.flatten
 
-  row_count = (filenames.size.to_f / COLUMN_COUNT).ceil
+  row_count = (filenames.size / COLUMN_COUNT).ceil
   rows = Array.new(row_count) { [] }
 
   filenames.each_with_index do |filename, index|
@@ -55,8 +59,8 @@ def arrange_into_rows(formated_columns)
   rows
 end
 
-def display_filenames(rows)
-  rows.each { |row| puts row.join }
+def print_filenames(rows)
+  puts rows.map(&:join)
 end
 
 main if $PROGRAM_NAME == __FILE__
