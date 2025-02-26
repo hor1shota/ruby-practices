@@ -2,20 +2,32 @@
 # frozen_string_literal: true
 
 COLUMN_COUNT = 3
-MIN_COLUMN_WIDTH = 16
-COLUMN_PADDING = 8
 
 def main
   filenames = fetch_visible_filenames
-  max_filename_length = find_max_filename_length(filenames)
-  column_width = determine_column_width(max_filename_length)
-  padded_filenames = pad_filenames(filenames, column_width)
-  rows = arrange_into_rows(padded_filenames)
+
+  columns = split_into_column(filenames)
+  formated_columns = format_columns(columns)
+
+  rows = arrange_into_rows(formated_columns)
   display_filenames(rows)
 end
 
 def fetch_visible_filenames
-  Dir.entries('.').reject { |entry| entry.start_with?('.') }.sort
+  Dir.entries('./test').reject { |entry| entry.start_with?('.') }.sort
+end
+
+def format_columns(columns)
+  columns.map do |column|
+    max_filename_length = find_max_filename_length(column)
+    column_width = determine_column_width(max_filename_length)
+    padded_column = pad_filenames(column, column_width)
+  end
+end
+
+def split_into_column(filenames)
+  row_count = (filenames.size / COLUMN_COUNT).ceil
+  filenames.each_slice(row_count).to_a
 end
 
 def find_max_filename_length(filenames)
@@ -23,20 +35,20 @@ def find_max_filename_length(filenames)
 end
 
 def determine_column_width(max_filename_length)
-  column_width = [(max_filename_length.to_f / COLUMN_PADDING).ceil * COLUMN_PADDING, MIN_COLUMN_WIDTH].max
-  column_width += COLUMN_PADDING if column_width == max_filename_length
-  column_width
+  max_filename_length + 2
 end
 
-def pad_filenames(filenames, column_width)
-  filenames.map { |filename| filename.ljust(column_width) }
+def pad_filenames(column, column_width)
+  column.map { |cell| cell.ljust(column_width) }
 end
 
-def arrange_into_rows(padded_filenames)
-  row_count = (padded_filenames.size.to_f / COLUMN_COUNT).ceil
+def arrange_into_rows(formated_columns)
+  filenames = formated_columns.flatten
+
+  row_count = (filenames.size.to_f / COLUMN_COUNT).ceil
   rows = Array.new(row_count) { [] }
 
-  padded_filenames.each_with_index do |filename, index|
+  filenames.each_with_index do |filename, index|
     rows[index % row_count] << filename
   end
 
