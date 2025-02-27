@@ -1,12 +1,16 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require 'optparse'
+
 COLUMN_COUNT = 3
 COLUMN_PADDING = 2
 TARGET_DIR = '.'
 
 def main
-  filenames = fetch_visible_filenames
+  params = parse_params
+
+  filenames = fetch_visible_filenames(params)
 
   return if filenames.empty?
 
@@ -17,8 +21,19 @@ def main
   print_filenames(rows)
 end
 
-def fetch_visible_filenames
-  Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort
+def parse_params
+  option_parser = OptionParser.new
+  params = {}
+  option_parser.on('-a') { |val| params[:a] = val }
+  option_parser.parse(ARGV)
+
+  params
+end
+
+def fetch_visible_filenames(params)
+  Dir.entries(TARGET_DIR)
+     .select { |entry| params[:a] || entry.match(/^[^.]/) }
+     .sort_by(&:downcase)
 end
 
 def format_columns(columns)
