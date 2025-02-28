@@ -9,9 +9,7 @@ TARGET_DIR = '.'
 
 def main
   params = parse_params
-
   filenames = fetch_visible_filenames(params)
-
   return if filenames.empty?
 
   columns = divide_into_columns(filenames)
@@ -24,16 +22,15 @@ end
 def parse_params
   option_parser = OptionParser.new
   params = {}
-  option_parser.on('-a') { |val| params[:a] = val }
-  option_parser.parse(ARGV)
+  option_parser.on('-r', 'Reverse the order of the sort.')
+  option_parser.parse(ARGV, into: params)
 
   params
 end
 
 def fetch_visible_filenames(params)
-  Dir.entries(TARGET_DIR)
-     .select { |entry| params[:a] || entry.match(/^[^.]/) }
-     .sort_by(&:downcase)
+  entries = Dir.entries(TARGET_DIR).sort_by(&:downcase)
+  params[:r] ? entries.reverse : entries
 end
 
 def format_columns(columns)
