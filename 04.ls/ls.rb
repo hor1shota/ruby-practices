@@ -13,13 +13,15 @@ def main
   file_names = fetch_visible_file_names
   return if file_names.empty?
 
-  return print_long_format(file_names) if params[:l]
-
-  columns = divide_into_columns(file_names)
-  formatted_columns = format_columns(columns)
-
-  rows = transpose_columns_to_rows(formatted_columns)
-  print_file_names(rows)
+  if params[:l]
+    details = list_files_detailed(file_names)
+    print_files_detailed(details[:file_stats], details[:max_field_widths])
+  else
+    columns = divide_into_columns(file_names)
+    formatted_columns = format_columns(columns)
+    rows = transpose_columns_to_rows(formatted_columns)
+    print_files(rows)
+  end
 end
 
 def parse_params
@@ -35,33 +37,47 @@ def fetch_visible_file_names
   entries = Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort_by(&:downcase)
 end
 
-def print_long_format(file_names)
-  max_hard_link_width = file_names.map { |file_name| File.stat(file_name).nlink.to_s.length  }.max
-  max_file_size_width = file_names.map { |file_name| File.stat(file_name).size.to_s.length  }.max
-  max_owner_width = file_names.map { |file_name| Etc.getpwuid(File.stat(file_name).uid).name.length }.max
-  max_group_width = file_names.map { |file_name| Etc.getgrgid(File.stat(file_name).gid).name.length }.max
+def list_files_detailed(file_names)
+  file_stats = file_names.map { |file_name| fetch_file_info(file_name) }
+  max_field_widths = calculate_max_field_widths(file_stats)
+  {
+    file_stats: file_stats,
+    max_field_widths: max_field_widths
+  }
+end
 
-  file_names.each do |file_name|
-    file_stat = File.symlink?(file_name) ? File.lstat(file_name) : File.stat(file_name)
+def fetch_file_info(file_name)
+  file_path = File.join(TARGET_DIR, file_name)
+  file_stat = File.symlink?(file_path) ? File.lstat(file_path) : File.stat(file_path)
 
-    mode_str = file_stat.mode.to_s(8).rjust(6, '0')
-    match = mode_str.match(/^(\d{2}).(\d{3})$/)
+  mode_str = file_stat.mode.to_s(8).rjust(6, '0')
+  match = mode_str.match(/^(\d{2}).(\d{3})$/)
 
-    file_type = convert_file_type_format(match[1])
-    permissions = match[2].each_char.map { |permission| convert_permission_format(permission) }.join
+  {
+    file_type: convert_file_type_format(match[1]),
+    permissions: match[2].each_char.map { |permission| convert_permission_format(permission) }.join,
+    hard_link_count: file_stat.nlink,
+    owner: Etc.getpwuid(file_stat.uid).name,
+    group: Etc.getgrgid(file_stat.gid).name,
+    file_size: file_stat.size,
+    update_time: file_stat.mtime.strftime('%_2m %_2d %H:%M'),
+    file_name: File.symlink?(file_name) ? convert_link_format(file_name) : file_name
+  }
+end
 
-    hard_link_count = file_stat.nlink
-    owner = Etc.getpwuid(file_stat.uid).name
-    group = Etc.getgrgid(file_stat.gid).name
-    file_size = file_stat.size
+def calculate_max_field_widths(file_stats)
+  {
+    hard_link: file_stats.map { |file_stat| file_stat[:hard_link_count].to_s.length }.max,
+    owner: file_stats.map { |file_stat| file_stat[:owner].length }.max,
+    group: file_stats.map { |file_stat| file_stat[:group].length }.max,
+    file_size: file_stats.map { |file_stat| file_stat[:file_size].to_s.length  }.max
+  }
+end
 
-    time_format = '%_2m %_2d %H:%M'
-    update_time = file_stat.mtime.strftime(time_format)
-
-    file_name = convert_link_format(file_name) if File.symlink?(file_name)
-
-    printf "%s%s  %#{max_hard_link_width}d %#{max_owner_width}s  %#{max_group_width}s  %#{max_file_size_width}d %s %s\n",
-            file_type, permissions, hard_link_count, owner, group, file_size, update_time, file_name
+def print_files_detailed(file_stats, max_field_widths)
+  file_stats.each do |file_info|
+    puts sprintf "%s%s  %#{max_field_widths[:hard_link]}d %-#{max_field_widths[:owner]}s  %-#{max_field_widths[:group]}s  %#{max_field_widths[:file_size]}d %s %s",
+              file_info[:file_type], file_info[:permissions], file_info[:hard_link_count], file_info[:owner], file_info[:group], file_info[:file_size], file_info[:update_time], file_info[:file_name]
   end
 end
 
@@ -83,7 +99,7 @@ def convert_permission_format(permission)
     '5' => 'r-x',
     '6' => 'rw-',
     '7' => 'rwx'
-  }[permission] || '?'
+  }[permission]
 end
 
 def convert_link_format(symlink_path)
@@ -129,7 +145,7 @@ def transpose_columns_to_rows(formatted_columns)
   rows
 end
 
-def print_file_names(rows)
+def print_files(rows)
   puts rows.map(&:join)
 end
 
