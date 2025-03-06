@@ -34,7 +34,7 @@ def parse_params
 end
 
 def fetch_visible_file_names
-  entries = Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort_by(&:downcase)
+  Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort_by(&:downcase)
 end
 
 def list_files_detailed(file_names)
@@ -70,14 +70,15 @@ def calculate_max_field_widths(file_stats)
     hard_link: file_stats.map { |file_stat| file_stat[:hard_link_count].to_s.length }.max,
     owner: file_stats.map { |file_stat| file_stat[:owner].length }.max,
     group: file_stats.map { |file_stat| file_stat[:group].length }.max,
-    file_size: file_stats.map { |file_stat| file_stat[:file_size].to_s.length  }.max
+    file_size: file_stats.map { |file_stat| file_stat[:file_size].to_s.length }.max
   }
 end
 
 def print_files_detailed(file_stats, max_field_widths)
   file_stats.each do |file_info|
-    puts sprintf "%s%s  %#{max_field_widths[:hard_link]}d %-#{max_field_widths[:owner]}s  %-#{max_field_widths[:group]}s  %#{max_field_widths[:file_size]}d %s %s",
-              file_info[:file_type], file_info[:permissions], file_info[:hard_link_count], file_info[:owner], file_info[:group], file_info[:file_size], file_info[:update_time], file_info[:file_name]
+    format = "%s%s  %#{max_field_widths[:hard_link]}d %-#{max_field_widths[:owner]}s  %-#{max_field_widths[:group]}s  %#{max_field_widths[:file_size]}d %s %s"
+
+    puts format(format, *file_info.values)
   end
 end
 
