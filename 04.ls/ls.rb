@@ -14,8 +14,9 @@ def main
   return if file_names.empty?
 
   if params[:l]
-    details = list_files_detailed(file_names)
-    print_files_detailed(details[:file_stats], details[:max_field_widths])
+    file_stats = file_names.map { |file_name| fetch_file_info(file_name) }
+    max_field_widths = calculate_max_field_widths(file_stats)
+    print_files_detailed(file_stats, max_field_widths)
   else
     columns = divide_into_columns(file_names)
     formatted_columns = format_columns(columns)
@@ -35,15 +36,6 @@ end
 
 def fetch_visible_file_names
   Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort_by(&:downcase)
-end
-
-def list_files_detailed(file_names)
-  file_stats = file_names.map { |file_name| fetch_file_info(file_name) }
-  max_field_widths = calculate_max_field_widths(file_stats)
-  {
-    file_stats: file_stats,
-    max_field_widths: max_field_widths
-  }
 end
 
 def fetch_file_info(file_name)
