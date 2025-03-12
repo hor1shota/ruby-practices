@@ -15,8 +15,9 @@ def main
 
   if params[:l]
     file_stats = file_names.map { |file_name| fetch_file_info(file_name) }
+    block_count = calculate_block_count(file_stats)
     max_field_widths = calculate_max_field_widths(file_stats)
-    print_files_detailed(file_stats, max_field_widths)
+    print_files_detailed(block_count, file_stats, max_field_widths)
   else
     columns = divide_into_columns(file_names)
     formatted_columns = format_columns(columns)
@@ -46,6 +47,7 @@ def fetch_file_info(file_name)
   match = mode_str.match(/^(\d{2}).(\d{3})$/)
 
   {
+    block_count: file_stat.blocks,
     file_type: convert_file_type_format(match[1]),
     permissions: match[2].each_char.map { |permission| convert_permission_format(permission) }.join,
     hard_link_count: file_stat.nlink,
@@ -66,11 +68,16 @@ def calculate_max_field_widths(file_stats)
   }
 end
 
-def print_files_detailed(file_stats, max_field_widths)
+def calculate_block_count(file_stats)
+  file_stats.sum { |file_info| file_info[:block_count] }
+end
+
+def print_files_detailed(block_count, file_stats, max_field_widths)
+  puts "total #{block_count}"
   file_stats.each do |file_info|
     format = "%s%s  %#{max_field_widths[:hard_link]}d %-#{max_field_widths[:owner]}s  %-#{max_field_widths[:group]}s  %#{max_field_widths[:file_size]}d %s %s"
 
-    puts format(format, *file_info.values)
+    puts format(format, *file_info.except(:block_count).values)
   end
 end
 
