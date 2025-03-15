@@ -10,8 +10,10 @@ TARGET_DIR = '.'
 
 def main
   params = parse_params
-  file_names = fetch_visible_file_names
+  file_names = fetch_file_names(params)
   return if file_names.empty?
+
+  file_names.reverse! if params[:r]
 
   if params[:l]
     file_stats = file_names.map { |file_name| fetch_file_info(file_name) }
@@ -29,14 +31,18 @@ end
 def parse_params
   option_parser = OptionParser.new
   params = {}
+  option_parser.on('-a', 'Include directory entries whose names begin with a dot.')
+  option_parser.on('-r', 'Reverse the order of the sort.')
   option_parser.on('-l', 'List files in the long format.')
   option_parser.parse(ARGV, into: params)
 
   params
 end
 
-def fetch_visible_file_names
-  Dir.entries(TARGET_DIR).reject { |entry| entry.start_with?('.') }.sort_by(&:downcase)
+def fetch_file_names(params)
+  Dir.entries(TARGET_DIR)
+     .select { |entry| params[:a] || entry.start_with?(/[^.]/) }
+     .sort_by(&:downcase)
 end
 
 def fetch_file_info(file_name)
@@ -57,28 +63,6 @@ def fetch_file_info(file_name)
     update_time: file_stat.mtime.strftime('%_2m %_2d %H:%M'),
     file_name: File.symlink?(file_name) ? convert_link_format(file_name) : file_name
   }
-end
-
-def calculate_max_field_widths(file_stats)
-  {
-    hard_link: file_stats.map { |file_stat| file_stat[:hard_link_count].to_s.length }.max,
-    owner: file_stats.map { |file_stat| file_stat[:owner].length }.max,
-    group: file_stats.map { |file_stat| file_stat[:group].length }.max,
-    file_size: file_stats.map { |file_stat| file_stat[:file_size].to_s.length }.max
-  }
-end
-
-def calculate_block_count(file_stats)
-  file_stats.sum { |file_info| file_info[:block_count] }
-end
-
-def print_files_detailed(block_count, file_stats, max_field_widths)
-  puts "total #{block_count}"
-  file_stats.each do |file_info|
-    format = "%s%s  %#{max_field_widths[:hard_link]}d %-#{max_field_widths[:owner]}s  %-#{max_field_widths[:group]}s  %#{max_field_widths[:file_size]}d %s %s"
-
-    puts format(format, *file_info.except(:block_count).values)
-  end
 end
 
 def convert_file_type_format(file_type)
@@ -105,6 +89,28 @@ end
 def convert_link_format(symlink_path)
   target_path = File.readlink(symlink_path)
   "#{symlink_path} -> #{target_path}"
+end
+
+def calculate_block_count(file_stats)
+  file_stats.sum { |file_info| file_info[:block_count] }
+end
+
+def calculate_max_field_widths(file_stats)
+  {
+    hard_link: file_stats.map { |file_stat| file_stat[:hard_link_count].to_s.length }.max,
+    owner: file_stats.map { |file_stat| file_stat[:owner].length }.max,
+    group: file_stats.map { |file_stat| file_stat[:group].length }.max,
+    file_size: file_stats.map { |file_stat| file_stat[:file_size].to_s.length }.max
+  }
+end
+
+def print_files_detailed(block_count, file_stats, max_field_widths)
+  puts "total #{block_count}"
+  file_stats.each do |file_info|
+    format = "%s%s  %#{max_field_widths[:hard_link]}d %-#{max_field_widths[:owner]}s  %-#{max_field_widths[:group]}s  %#{max_field_widths[:file_size]}d %s %s"
+
+    puts format(format, *file_info.except(:block_count).values)
+  end
 end
 
 def format_columns(columns)
